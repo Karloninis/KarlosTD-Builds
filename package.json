@@ -1,7 +1,7 @@
 {
   "name": "Karlos-TD",
   "version": "1.7.0",
-  "description": "",
+  "description": "Karlos TD - Desktop Client",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -9,13 +9,29 @@
     "build-linux": "electron-builder --linux AppImage -p never",
     "build-mac": "electron-builder --mac -p never",
     "build-all": "npm run build-win && npm run build-linux && npm run build-mac"
-},
+  },
+  "build": {
+    "appId": "com.karlos.td",
+    "productName": "Karlos TD",
+    "mac": {
+      "target": {
+        "target": "dmg",
+        "arch": ["universal"]
+      }
+    },
+    "win": {
+      "target": "portable"
+    },
+    "linux": {
+      "target": "AppImage"
+    }
+  },
   "keywords": [],
   "author": "Karlo",
   "license": "ISC",
   "type": "commonjs",
   "devDependencies": {
-    "electron": "^40.1.0",
-    "electron-builder": "^26.7.0"
+    "electron": "^33.0.0",
+    "electron-builder": "^24.9.0"
   }
 }
