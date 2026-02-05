@@ -1,0 +1,21 @@
+{
+  "name": "Karlos-TD",
+  "version": "1.7.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build-win": "electron-builder --win portable",
+    "build-linux": "electron-builder --linux AppImage",
+    "build-mac": "electron-builder --mac",
+    "build-all": "npm run build-win && npm run build-linux && npm run build-mac"
+  },
+  "keywords": [],
+  "author": "Karlo",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "electron": "^40.1.0",
+    "electron-builder": "^26.7.0"
+  }
+}
