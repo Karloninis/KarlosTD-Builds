@@ -1,6 +1,6 @@
 {
   "name": "Karlos-TD",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "Karlos TD - Desktop Client",
   "main": "main.js",
   "scripts": {

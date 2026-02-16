@@ -887,6 +887,59 @@
             opacity: 0.5;
         }
         
+        /* Live Player Counter */
+        #live-player-counter {
+            position: absolute;
+            left: calc(100% + 15px); /* 15px gap from button */
+            top: 50%;
+            transform: translateY(-50%);
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.2));
+            border: 2px solid #2ecc71;
+            border-radius: 20px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 20px rgba(46, 204, 113, 0.3);
+            animation: pulseGlow 2s infinite;
+            white-space: nowrap;
+        }
+        
+        @keyframes pulseGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(46, 204, 113, 0.3); }
+            50% { box-shadow: 0 0 30px rgba(46, 204, 113, 0.6); }
+        }
+        
+        #live-player-counter .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: #2ecc71;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #2ecc71;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        
+        #live-player-counter .player-count-text {
+            color: #2ecc71;
+            font-weight: bold;
+            font-size: 14px;
+            text-shadow: 0 0 10px rgba(46, 204, 113, 0.5);
+        }
+        
+        #live-player-counter .player-count-number {
+            color: #fff;
+            font-weight: 900;
+            font-size: 18px;
+            min-width: 30px;
+            text-align: center;
+            transition: transform 0.2s ease;
+        }
+        
         /* Futuristic Stats Bar */
         #stats-bar {
             position: absolute; top: 60px; left: 15px;
@@ -3736,7 +3789,19 @@ setInterval(() => {
             <h1 class="title-text" style="color:var(--primary)">KARLO'S TD</h1>
             <div style="display:flex; flex-direction:column; gap:10px; align-items:center;">
                 <button class="btn btn-primary" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); showLevelSelect()">PLAY</button>
-		<button id="btn-multiplayer" class="btn" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); showMpName()">MULTIPLAYER</button>
+		
+		<!-- Multiplayer button with counter positioned absolutely next to it -->
+		<div style="position: relative;">
+			<button id="btn-multiplayer" class="btn" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); showMpName()">MULTIPLAYER</button>
+			
+			<!-- Live Player Counter - positioned absolutely to not affect button centering -->
+			<div id="live-player-counter" title="Players with game open right now">
+				<div class="pulse-dot"></div>
+				<span class="player-count-number" id="live-player-count">--</span>
+				<span class="player-count-text">ONLINE</span>
+			</div>
+		</div>
+		
 		<button class="btn" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); if(typeof openChallenges==='function')openChallenges()">DAILY CHALLENGES</button>
 		<button class="btn" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); if(typeof openSkillTree==='function')openSkillTree()">SKILL TREE</button>
                 <button class="btn" style="width: 200px;" onclick="if(typeof playClick==='function')playClick(); showAlmanac()">ALMANAC</button>
@@ -15044,7 +15109,120 @@ function canBuild(x, z) {
             
             // Check for invite link room parameter
             checkInviteLink();
+            
+            // Start live player counter
+            initLivePlayerCounter();
         });
+        
+        /**
+         * Live Player Counter System
+         * Fetches total player count from Render.com tracking server
+         * Also sends heartbeat to register this player as active
+         */
+        let playerHeartbeatInterval = null;
+        let playerSessionId = null;
+        
+        // ⚠️ CHANGE THIS TO YOUR RENDER.COM URL! ⚠️
+        const TRACKING_SERVER = 'https://karlostdplayercounter.onrender.com';
+        
+        function initLivePlayerCounter() {
+            const counterElement = document.getElementById('live-player-count');
+            if (!counterElement) return;
+            
+            // Generate unique session ID for this player
+            playerSessionId = 'player_' + Date.now() + '_' + Math.random().toString(36).substring(7);
+            
+            // Start sending heartbeat to register as active player
+            startPlayerHeartbeat();
+            
+            // Update counter immediately
+            updateLivePlayerCount();
+            
+            // Update every 30 seconds
+            setInterval(updateLivePlayerCount, 30000);
+        }
+        
+        /**
+         * Send heartbeat to servers to register this player as active
+         * Heartbeats are sent every 25 seconds (servers expire after 60s of no heartbeat)
+         */
+        function startPlayerHeartbeat() {
+            // Send initial heartbeat
+            sendHeartbeat();
+            
+            // Send heartbeat every 25 seconds
+            playerHeartbeatInterval = setInterval(sendHeartbeat, 25000);
+            
+            // Stop heartbeat when page unloads
+            window.addEventListener('beforeunload', stopPlayerHeartbeat);
+        }
+        
+        function stopPlayerHeartbeat() {
+            if (playerHeartbeatInterval) {
+                clearInterval(playerHeartbeatInterval);
+                playerHeartbeatInterval = null;
+            }
+        }
+        
+        async function sendHeartbeat() {
+            if (!playerSessionId) return;
+            
+            try {
+                await fetch(TRACKING_SERVER + '/heartbeat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        sessionId: playerSessionId,
+                        platform: window.location.hostname.includes('itch') ? 'itch.io' : 
+                                 window.location.hostname.includes('crazygames') ? 'crazygames' : 'web',
+                        timestamp: Date.now()
+                    }),
+                    cache: 'no-cache'
+                });
+            } catch (err) {
+                // Heartbeat failed - server might be offline or sleeping
+                console.log('Heartbeat failed:', err.message);
+            }
+        }
+        
+        async function updateLivePlayerCount() {
+            const counterElement = document.getElementById('live-player-count');
+            if (!counterElement) return;
+            
+            try {
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 5000);
+                
+                const response = await fetch(TRACKING_SERVER + '/player-count', {
+                    method: 'GET',
+                    signal: controller.signal,
+                    cache: 'no-cache'
+                });
+                
+                clearTimeout(timeout);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const count = data.count || 0;
+                    
+                    counterElement.textContent = count;
+                    counterElement.parentElement.title = `${count} players with game open`;
+                    
+                    // Add animation when count changes
+                    counterElement.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        counterElement.style.transform = 'scale(1)';
+                    }, 200);
+                } else {
+                    counterElement.textContent = '0';
+                    counterElement.parentElement.title = 'Unable to fetch player count';
+                }
+            } catch (error) {
+                console.log('Failed to update player count:', error.message);
+                counterElement.textContent = '0';
+                counterElement.parentElement.title = 'Checking for active players...';
+            }
+        }
         
         /**
          * Check URL for room parameter and auto-join
